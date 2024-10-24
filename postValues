@@ -1,0 +1,20 @@
+//criteria
+
+http://"client_ipaddress"/json
+
+{
+  "deviceId": "your_device_id",
+  "memberId": "your_member_id",
+  "success": {true:false}
+}
+
+
+
+//example
+
+http://192.168.1.123/json
+{
+  "deviceId": "ipad2",
+  "memberId": "12345",
+  "success": true
+}
