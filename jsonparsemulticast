@@ -6,8 +6,8 @@ const char* ssid = "SSID";        // Replace with your Wi-Fi SSID
 const char* password = "password"; // Replace with your Wi-Fi password
 
 WiFiUDP udp;
-IPAddress multicastAddress(239, 255, 0, 1); // Multicast IP address (example)
-const unsigned int multicastPort = 12345;    // Multicast port
+IPAddress multicastAddress(239, 255, 0, 1); // set Multicast IP address 
+const unsigned int multicastPort = 12345;    // set Multicast port
 
 const int ledPinSuccess = 2;  // GPIO for success LED
 const int ledPinFailure = 4;  // GPIO for failure LED
@@ -72,8 +72,8 @@ void loop() {
     Serial.print("Success: ");
     Serial.println(success ? "true" : "false");
 
-    // If deviceId is "kiosk_1" and success is true, turn on the success LED for 2 seconds
-    if (strcmp(deviceId, "kiosk_2") == 0) {
+    // If deviceId matches and success is true, turn on the success LED for 2 seconds, set deviceId match in line below
+    if (strcmp(deviceId, "kiosk_2") == 0) { 
       if (success) {
         Serial.println("Device ID matched and success is true. Turning on success LED for 2 seconds.");
         digitalWrite(ledPinSuccess, HIGH);   // Turn the success LED on
