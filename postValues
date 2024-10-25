@@ -18,3 +18,12 @@ http://192.168.1.123/json
   "memberId": "12345",
   "success": true
 }
+
+
+//multicast
+//set multicastaddress and port
+
+(
+  "deviceId": "your_device_id"
+  "success": {true:false}
+}
