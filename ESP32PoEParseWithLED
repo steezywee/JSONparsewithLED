@@ -1,0 +1,119 @@
+// Important to be defined BEFORE including ETH.h for ETH.begin() to work.
+// Example RMII LAN8720 (Olimex, etc.)
+#ifndef ETH_PHY_TYPE
+#define ETH_PHY_TYPE  ETH_PHY_LAN8720
+#define ETH_PHY_ADDR  0
+#define ETH_PHY_MDC   23
+#define ETH_PHY_MDIO  18
+#define ETH_PHY_POWER -1
+#define ETH_CLK_MODE  ETH_CLOCK_GPIO0_IN
+#define ETH_PHY_POWER 12
+#define ETH_CLK_MODE ETH_CLOCK_GPIO17_OUT
+#endif
+
+#define RELAY_PIN_SUCCESS 2  // Relay for success on GPIO0
+#define RELAY_PIN_FAIL 4     // Relay for failure on GPIO1
+
+#include <ETH.h>
+#include <WiFiUdp.h>
+#include <ArduinoJson.h>
+
+static bool eth_connected = false;
+
+WiFiUDP udp;
+const char* multicastAddress = "239.255.0.1";  // Example multicast address
+const unsigned int multicastPort = 12345;      // Example port
+
+// Event handler for Ethernet connection
+void onEvent(arduino_event_id_t event) {
+  switch (event) {
+    case ARDUINO_EVENT_ETH_START:
+      Serial.println("ETH Started");
+      ETH.setHostname("WPR_Gondola_Kiosk_1");
+      break;
+    case ARDUINO_EVENT_ETH_CONNECTED:
+      Serial.println("ETH Connected");
+      break;
+    case ARDUINO_EVENT_ETH_GOT_IP:
+      Serial.println("ETH Got IP");
+      Serial.print("IP Address: ");
+      Serial.println(ETH.localIP());
+      Serial.print("Subnet Mask: ");
+      Serial.println(ETH.subnetMask());
+      Serial.print("Gateway: ");
+      Serial.println(ETH.gatewayIP());
+      eth_connected = true;
+      udp.beginMulticast(IPAddress(multicastAddress), multicastPort);
+      break;
+    case ARDUINO_EVENT_ETH_LOST_IP:
+      Serial.println("ETH Lost IP");
+      eth_connected = false;
+      break;
+    case ARDUINO_EVENT_ETH_DISCONNECTED:
+      Serial.println("ETH Disconnected");
+      eth_connected = false;
+      break;
+    case ARDUINO_EVENT_ETH_STOP:
+      Serial.println("ETH Stopped");
+      eth_connected = false;
+      break;
+    default:
+      break;
+  }
+}
+
+void blinkRelay(int pin, int times) {
+  for (int i = 0; i < times; i++) {
+    digitalWrite(pin, HIGH);  // Relay ON
+    delay(800);               // Relay on for 800 ms
+    digitalWrite(pin, LOW);   // Relay OFF
+    delay(800);               // Relay off for 800 ms
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(2000);
+  
+  // Initialize relay pins and ensure they are OFF at startup
+  pinMode(RELAY_PIN_SUCCESS, OUTPUT);
+  pinMode(RELAY_PIN_FAIL, OUTPUT);
+  digitalWrite(RELAY_PIN_SUCCESS, LOW);  // Turn off relay initially
+  digitalWrite(RELAY_PIN_FAIL, LOW);     // Turn off relay initially
+  
+  Network.onEvent(onEvent);
+  ETH.begin();
+}
+
+void loop() {
+  if (eth_connected && udp.parsePacket()) {
+    char packetBuffer[512];
+    int len = udp.read(packetBuffer, 512);
+    if (len > 0) {
+      packetBuffer[len] = 0;
+      Serial.print("Received packet: ");
+      Serial.println(packetBuffer);
+
+      StaticJsonDocument<256> doc;
+      DeserializationError error = deserializeJson(doc, packetBuffer);
+      if (error) {
+        Serial.print("JSON parse failed: ");
+        Serial.println(error.c_str());
+        return;
+      }
+
+      const char* deviceId = doc["deviceId"];
+      bool success = doc["success"];
+
+      if (strcmp(deviceId, "kiosk_1") == 0) {
+        if (success) {
+          blinkRelay(RELAY_PIN_SUCCESS, 2);  // Blink twice for success
+        } else {
+          blinkRelay(RELAY_PIN_FAIL, 3);     // Blink three times for failure
+        }
+      } else {
+        Serial.println("DeviceID does not match");
+      }
+    }
+  }
+}
